@@ -11,12 +11,14 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go-version: [ '1.11.x', '1.12.x', '1.13.x', '1.14.x', '1.15.x']
+        go-version: [ '1.11.x'] #, '1.12.x', '1.13.x', '1.14.x', '1.15.x']
     steps:
     - name: Set up Go
       uses: actions/setup-go@v2
       with:
         go-version: ${{ matrix.go-version }}
+    - name: Checkout
+      uses: actions/checkout@v2
     - name: Cache go modules
       uses: actions/cache@v2
       with:
@@ -26,34 +28,50 @@ jobs:
         key: ${{ runner.os }}-${{ matrix.go-version }}-go-${{ hashFiles('**/go.sum') }}
         restore-keys: |
           ${{ runner.os }}-${{ matrix.go-version }}-go-
-    - name: Checkout
-      uses: actions/checkout@v2
     - name: Install
       env:
         GO111MODULE: on
       run: |
+        go get -d -v google.golang.org/appengine
         go get .
+        mkdir /tmp/sdk
+        # curl -o /tmp/sdk.zip "https://storage.googleapis.com/appengine-sdks/featured/go_appengine_sdk_linux_amd64-1.9.70.zip"
+        # unzip -q /tmp/sdk.zip -d /tmp/sdk
+        curl -o /tmp/sdk.tar.gz https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-349.0.0-linux-x86_64.tar.gz
+        tar -zxvf /tmp/sdk.tar.gz -C /tmp/sdk/
     - name: Test gomod
       run: |
+        # export PATH="$PATH:/tmp/sdk/go_appengine"
+        sudo apt-get install google-cloud-sdk-app-engine-python google-cloud-sdk-app-engine-go google-cloud-sdk-datastore-emulator
+        export APPENGINE_DEV_APPSERVER=/tmp/sdk/google-cloud-sdk/bin/dev_appserver.py
         go test -v -race google.golang.org/appengine/...
-  test-gopath:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        # GOPATH is deprecated in go 1.13.
-        go-version: [ '1.11.x', '1.12.x']
-    steps:
-    - name: Set up Go
-      uses: actions/setup-go@v2
-      with:
-        go-version: ${{ matrix.go-version }}
-    - name: Checkout
-      uses: actions/checkout@v2
-    - name: Install
-      env:
-        GO111MODULE: off
-      run: |
-        go get -u -v $(go list -f '{{join .Imports "\n"}}{{"\n"}}{{join .TestImports "\n"}}' ./... | sort | uniq | grep -v appengine)
-    - name: Test gopath
-      run: |
-        go test -v -race google.golang.org/appengine/...
+  # test-gopath:
+  #   runs-on: ubuntu-latest
+  #   strategy:
+  #     matrix:
+  #       # GOPATH is deprecated in go 1.13.
+  #       go-version: [ '1.11.x', '1.12.x']
+  #   steps:
+  #   - name: Set up Go
+  #     uses: actions/setup-go@v2
+  #     with:
+  #       go-version: ${{ matrix.go-version }}
+  #   - name: Checkout
+  #     uses: actions/checkout@v2
+  #   - name: Install
+  #     env:
+  #       GO111MODULE: off
+  #     run: |
+  #       go get -u -v $(go list -f '{{join .Imports "\n"}}{{"\n"}}{{join .TestImports "\n"}}' ./... | sort | uniq | grep -v appengine)
+  #       go get -u google.golang.org/appengine
+  #       mkdir /tmp/sdk
+  #       curl -o /tmp/sdk.zip "https://storage.googleapis.com/appengine-sdks/featured/go_appengine_sdk_linux_amd64-1.9.70.zip"
+  #       unzip -q /tmp/sdk.zip -d /tmp/sdk
+  #       # NOTE: Set the following env vars in the test script:
+  #       # export PATH="$PATH:/tmp/sdk/go_appengine"
+  #       # export APPENGINE_DEV_APPSERVER=/tmp/sdk/go_appengine/dev_appserver.py
+  #   - name: Test gopath
+  #     run: |
+  #       # export PATH="$PATH:/tmp/sdk/go_appengine"
+  #       export APPENGINE_DEV_APPSERVER=/tmp/sdk/bin/dev_appserver.py
+  #       go test -v -race google.golang.org/appengine/...
