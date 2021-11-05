@@ -36,7 +36,6 @@ tasks that call the reserved application path "/_ah/queue/go/delay".
 This path may only be marked as "login: admin" or have no access
 restriction; it will fail if marked as "login: required".
 */
-
 package delay // import "google.golang.org/appengine/v2/delay"
 
 import (
